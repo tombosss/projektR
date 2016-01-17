@@ -1,0 +1,136 @@
+---
+title: "Projekt zaliczeniowy "
+output: 
+  html_document: 
+    keep_md: yes
+---
+#Spis tresci
+1. [Kod wyliczaj¹cy wykorzystane biblioteki](#Kod wyliczaj¹cy wykorzystane biblioteki)
+3. [Kod pozwalaj¹cy wczytaæ dane z pliku](#Kod pozwalaj¹cy wczytaæ dane z pliku)
+4. [Kod usuwaj¹cy z danych wiersze oraz pozostawiaj¹ce unikatowe waeroœci](#usuwanie i unikaty)
+6. [Okreœlenie ile przyk³adów ma ka¿da z klas (res_name)](#Okreœlenie ile przyk³adów ma ka¿da z klas (res_name))
+10. [Próbê odtworzenia nastêpuj¹cego wykresu (oœ X - liczba elektronów, oœ y - liczba atomów)](#Próbê odtworzenia nastêpuj¹cego wykresu (oœ X - liczba elektronów, oœ y - liczba atomów)) 
+11. [Tabelê pokazuj¹c¹ 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów (local_res_atom_non_h_count vs dict_atom_non_h_count)](#Tabelê pokazuj¹c¹ 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów (local_res_atom_non_h_count vs dict_atom_non_h_count))
+
+
+
+
+
+##Kod wyliczaj¹cy wykorzystane biblioteki
+
+```{r, Kod wyliczaj¹cy wykorzystane biblioteki,  message=FALSE}
+library("knitr")
+library("dplyr")
+library("ggplot2")
+library("ggExtra")
+
+```
+##Kod pozwalaj¹cy wczytaæ dane z pliku
+
+```{r, Kod pozwalaj¹cy wczytaæ dane z pliku}
+data <- read.csv("all_summary.txt", TRUE, ";")
+data <-tbl_df(data)
+```
+##Kod usuwaj¹cy z danych wiersze posiadaj¹ce wartoœæ zmiennej res_name równ¹: “DA”,“DC”,“DT”, “DU”, “DG”, “DI”,“UNK”, “UNX”, “UNL”, “PR”, “PD”, “Y1”, “EU”, “N”, “15P”, “UQ”, “PX4” lub “NAN”;
+##Kod pozostawiaj¹cy tylko unikatowe pary wartoœci (pdb_code, res_name)
+
+
+```{r, usuwanie i unikaty}
+usunac <- c("DA", "DC", "DT", "DU", "DG", "DI", "UNK", "UNX", "UNL", "PR", "PD", "Y1", "EU", "N", "15P", "UQ", "PX4")
+data2 <-  data %>% 
+  filter(!(res_name %in% usunac) | is.na(res_name)) %>% 
+  distinct(pdb_code, res_name)
+
+```
+##Krótkie podsumowanie wartoœci w ka¿dej kolumnie
+```{r}
+kable(summary(data2))
+```
+
+
+##Okreœlenie ile przyk³adów ma ka¿da z klas (res_name)
+
+```{r,Okreœlenie ile przyk³adów ma ka¿da z klas (res_name)}
+ilosc_przykladow_res_name <- data2 %>% select(res_name) %>% group_by(res_name) %>% summarise(count = n()) %>% arrange(desc(count), res_name)
+head(ilosc_przykladow_res_name, 20)
+
+
+res_name_Plot <- ilosc_przykladow_res_name %>% select(count) %>% arrange(count)
+ggplot(ilosc_przykladow_res_name, aes(x = count)) + 
+  xlab("count(res_name)") +
+  ylab("density") +
+  geom_density(kernel = "gaussian", fill = "steelblue") + 
+  scale_y_sqrt() + 
+  theme_minimal()
+
+```
+##Próbê odtworzenia nastêpuj¹cego wykresu (oœ X - liczba elektronów, oœ y - liczba atomów): 
+```{r, Próbê odtworzenia nastêpuj¹cego wykresu (oœ X - liczba elektronów, oœ y - liczba atomów)}
+glowny_wykres  <- ggplot(data2, aes(x=local_res_atom_non_h_electron_sum, y=local_res_atom_non_h_count)) + stat_density2d(aes(fill=..level..), bins=30, geom="polygon") + scale_fill_gradientn(colours=c("darkslateblue", "yellow", "red")) + theme(legend.position = "none", axis.title = element_blank(), panel.background = element_rect(fill = "darkslateblue"), panel.grid=element_blank(), panel.border=element_blank()) + scale_y_continuous(expand = c(0, 0), limits = c(0, 100), breaks=seq(0,100, by=20)) + scale_x_continuous(expand = c(0, 0), limits = c(0, 650), breaks=seq(0,650, by=100))
+
+gorny_wykres  <- ggplot(data2, aes(x=local_res_atom_non_h_electron_sum)) + geom_histogram(binwidth = 6.5, fill=I("red"), col=I("black")) + xlim(c(0,650)) + theme(axis.text = element_blank(), axis.title = element_blank(), line = element_blank(), panel.background = element_blank())
+
+dolny_wykres  <- ggplot(data2, aes(x=dict_atom_non_h_count)) + geom_histogram(binwidth = 1, fill=I("red"), col=I("black")) + xlim(c(0,100)) + coord_flip() + theme(axis.text = element_blank(), axis.title = element_blank(), line = element_blank(), panel.background = element_blank())
+
+uklad <- ggplot(data2, aes(x = local_res_atom_non_h_electron_sum, y = local_res_atom_non_h_count)) + geom_blank() + theme(axis.text = element_blank(), axis.title = element_blank(), line = element_blank(), panel.background = element_blank())
+
+gridExtra::grid.arrange(gorny_wykres, dolny_wykres, glowny_wykres, dolny_wykres, ncol = 2, nrow = 2, widths = c(3, 1), heights = c(1, 3))
+
+
+
+```
+##Tabelê pokazuj¹c¹ 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów (local_res_atom_non_h_count vs dict_atom_non_h_count)
+
+
+```{r, Tabelê pokazuj¹c¹ 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów (local_res_atom_non_h_count vs dict_atom_non_h_count)}
+top10 <- data2 %>% 
+  select(class=res_name, local_res_atom_non_h_count, dict_atom_non_h_count) %>%
+  mutate(difference=abs(local_res_atom_non_h_count - dict_atom_non_h_count)) %>%
+  arrange(desc(difference)) %>%
+  distinct(class) %>%
+  slice(1:10)
+
+atomInconsonance <- data2 %>% 
+  select(class=res_name, local_res_atom_non_h_count, dict_atom_non_h_count) %>%
+  mutate(difference=abs(local_res_atom_non_h_count - dict_atom_non_h_count)) %>%
+  filter(class %in% top10$class) %>%
+  group_by(class) %>%
+  summarise(minimum = min(difference),
+            maximum = max(difference),
+            mean = mean(difference),
+            median = median(difference),
+            variation = var(difference),
+            std_dev = sd(difference)) %>%
+  ungroup() %>%
+  arrange(desc(maximum))
+
+kable(atomInconsonance)
+
+```
+##tabelê pokazuj¹c¹ 10 klas z najwiêksz¹ niezgodnoœci¹ liczby elektronów (local_res_atom_non_h_electron_sum vs dict_atom_non_h_electron_sum)
+```{r}
+top102 <- data2 %>% 
+  select(class=res_name, local_res_atom_non_h_electron_sum, dict_atom_non_h_electron_sum) %>%
+  mutate(difference=abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum)) %>%
+  arrange(desc(difference)) %>%
+  distinct(class) %>%
+  slice(1:10)
+
+electronInconsonance <- data2 %>% 
+  select(class=res_name, local_res_atom_non_h_electron_sum, dict_atom_non_h_electron_sum) %>%
+  mutate(difference=abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum)) %>%
+  filter(class %in% top102$class) %>%
+  group_by(class) %>%
+  summarise(minimum = min(difference),
+            maximum = max(difference),
+            mean = mean(difference),
+            median = median(difference),
+            variation = var(difference),
+            std_dev = sd(difference)) %>%
+  ungroup() %>%
+  arrange(desc(maximum))
+
+kable(electronInconsonance)
+
+
+```
